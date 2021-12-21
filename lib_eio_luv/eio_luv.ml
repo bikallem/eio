@@ -256,7 +256,7 @@ module Stream = struct
     | xs -> xs
 
   let rec write t bufs =
-    let err, n = 
+    let err, n =
       (* note: libuv doesn't seem to allow cancelling stream writes *)
       enter (fun st k ->
           Luv.Stream.write (Handle.get "write_stream" t) bufs @@ fun err n ->
@@ -282,6 +282,7 @@ let sleep_until due =
       if Fibre_context.clear_cancel_fn k.fibre then enqueue_thread st k ()
     ) |> or_raise
 
+
 module Objects = struct
   type _ Eio.Generic.ty += FD : File.t Eio.Generic.ty
 
@@ -293,6 +294,27 @@ module Objects = struct
 
   let get_fd_opt t = Eio.Generic.probe t FD
 
+  let write_ src write_fn =
+    let buf = Luv.Buffer.create 4096 in
+    let continue = ref true in
+    while !continue do
+      try_with (Eio.Flow.read_into src) (Cstruct.of_bigarray buf)
+        {
+          effc = fun (type a) (e : a eff) ->
+            let open Eio.Private.Effects in
+            match e with
+            | End_of_file -> Some (fun _ ->
+                Printf.printf "eof_\n%!";
+                continue := false)
+            | Read_result(got) -> Some (fun _ ->
+                Printf.printf "got\n%!";
+                let sub = Luv.Buffer.sub buf ~offset:0 ~length:got in
+                write_fn sub
+              )
+            | _ -> None
+        }
+    done
+
   let flow fd = object (_ : <source; sink; ..>)
     method fd = fd
     method close = File.close fd
@@ -303,21 +325,11 @@ module Objects = struct
 
     method read_into buf =
       let buf = Cstruct.to_bigarray buf in
-      match File.read fd [buf] |> or_raise |> Unsigned.Size_t.to_int with
-      | 0 -> raise End_of_file
-      | got -> got
+      File.read fd [buf] |> or_raise |> Unsigned.Size_t.to_int
 
     method read_methods = []
 
-    method write src =
-      let buf = Luv.Buffer.create 4096 in
-      try
-        while true do
-          let got = Eio.Flow.read_into src (Cstruct.of_bigarray buf) in
-          let sub = Luv.Buffer.sub buf ~offset:0 ~length:got in
-          File.write fd [sub]
-        done
-      with End_of_file -> ()
+    method write src = write_ src (fun sub -> File.write fd [sub]);
   end
 
   let source fd = (flow fd :> source)
@@ -332,15 +344,17 @@ module Objects = struct
 
     method read_methods = []
 
-    method write src =
-      let buf = Luv.Buffer.create 4096 in
-      try
-        while true do
-          let got = Eio.Flow.read_into src (Cstruct.of_bigarray buf) in
-          let buf' = Luv.Buffer.sub buf ~offset:0 ~length:got in
-          Stream.write sock [buf']
-        done
-      with End_of_file -> ()
+    method write src = write_ src (fun buf' -> Stream.write sock [buf'])
+
+      (* method write src = *)
+      (* let buf = Luv.Buffer.create 4096 in *)
+      (* try *)
+      (*   while true do *)
+      (*     let got = Eio.Flow.read_into src (Cstruct.of_bigarray buf) in *)
+      (*     let buf' = Luv.Buffer.sub buf ~offset:0 ~length:got in *)
+      (*     Stream.write sock [buf'] *)
+      (*   done *)
+      (* with End_of_file -> () *)
 
     method close =
       Handle.close sock
@@ -605,7 +619,7 @@ module Objects = struct
       method fs = (fs :> Eio.Dir.t)
       method cwd = (cwd :> Eio.Dir.t)
     end
-end  
+end
 
 let rec wakeup run_q =
   match Lf_queue.pop run_q with
@@ -627,13 +641,13 @@ let rec run main =
       effc = fun (type a) (e : a eff) ->
         match e with
         | Await fn ->
-          Some (fun k -> 
+          Some (fun k ->
             let k = { Suspended.k; fibre } in
             fn loop fibre (enqueue_thread st k))
         | Eio.Private.Effects.Trace ->
           Some (fun k -> continue k Eunix.Trace.default_traceln)
         | Eio.Private.Effects.Fork (new_fibre, f) ->
-          Some (fun k -> 
+          Some (fun k ->
             let k = { Suspended.k; fibre } in
             enqueue_at_head st k ();
             fork ~new_fibre (fun () ->
@@ -653,7 +667,7 @@ let rec run main =
             | None -> fn st { Suspended.k; fibre }
           )
         | Eio.Private.Effects.Suspend fn ->
-          Some (fun k -> 
+          Some (fun k ->
               let k = { Suspended.k; fibre } in
               fn fibre (enqueue_result_thread st k)
             )

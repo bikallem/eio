@@ -726,12 +726,18 @@ module Objects = struct
   let fallback_copy src dst =
     with_chunk @@ fun chunk ->
     let chunk_cs = Uring.Region.to_cstruct chunk in
-    try
-      while true do
-        let got = Eio.Flow.read_into src chunk_cs in
-        write dst chunk got
-      done
-    with End_of_file -> ()
+    let continue = ref true in
+    while !continue do
+      try_with (Eio.Flow.read_into src) chunk_cs
+        {
+          effc = fun (type a) (e : a eff) ->
+            let open Eio.Private.Effects in
+            match e with
+            | End_of_file -> Some (fun _ -> continue := false)
+            | Read_result(got) -> Some (fun _ -> write dst chunk got)
+            | _ -> None
+        }
+    done
 
   let flow fd =
     let is_tty = lazy (Unix.isatty (FD.get "isatty" fd)) in

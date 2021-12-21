@@ -47,10 +47,13 @@ module Flow = struct
     method virtual read_into : Cstruct.t -> int
   end
 
+  type _ eff +=
+    | End_of_file : unit eff
+    | Read_result : int -> unit eff
+
   let read_into (t : #read) buf =
     let got = t#read_into buf in
-    assert (got > 0);
-    got
+    if got > 0 then perform End_of_file else perform (Read_result got)
 
   let read_methods (t : #read) = t#read_methods
 
@@ -291,10 +294,12 @@ module Private = struct
 
   module Effects = struct
     type 'a enqueue = 'a Suspend.enqueue
-    type _ eff += 
+    type _ eff +=
       | Suspend = Suspend.Suspend
       | Fork = Fibre.Fork
       | Get_context = Cancel.Get_context
       | Trace = Std.Trace
+      | End_of_file = Flow.End_of_file
+      | Read_result = Flow.Read_result
   end
 end

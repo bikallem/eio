@@ -275,7 +275,7 @@ module Stream : sig
       it returns [None] if the stream is empty rather than waiting.
       Note that if another domain may add to the stream then a [None]
       result may already be out-of-date by the time this returns. *)
-end  
+end
 
 (** Cancelling other fibres when an exception occurs. *)
 module Cancel : sig
@@ -393,12 +393,15 @@ module Flow : sig
     method virtual read_into : Cstruct.t -> int
   end
 
-  val read_into : #read -> Cstruct.t -> int
+  val read_into : #read -> Cstruct.t -> unit
   (** [read_into reader buf] reads one or more bytes into [buf].
       It returns the number of bytes written (which may be less than the
       buffer size even if there is more data to be read).
       [buf] must not be zero-length.
-      @raise End_of_file if there is no more data to read *)
+
+      Performs End_of_file effect if EOF is reached while reading
+      Performs Read_result(int) on successfull read.
+      *)
 
   val read_methods : #read -> read_method list
   (** [read_methods flow] is a list of extra ways of reading from [flow],
@@ -695,7 +698,7 @@ module Private : sig
     type 'a enqueue = ('a, exn) result -> unit
     (** A function provided by the scheduler to reschedule a previously-suspended thread. *)
 
-    type _ eff += 
+    type _ eff +=
       | Suspend : (Fibre_context.t -> 'a enqueue -> unit) -> 'a eff
       (** [Suspend fn] is performed when a fibre must be suspended
           (e.g. because it called {!Promise.await} on an unresolved promise).
@@ -713,5 +716,7 @@ module Private : sig
           the whole domain must block until it is. *)
 
       | Get_context : Fibre_context.t eff
+      | End_of_file : unit eff
+      | Read_result : int -> unit eff
   end
 end
