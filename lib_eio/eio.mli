@@ -262,6 +262,9 @@ module Stream : sig
   (** [create capacity] is a new stream which can hold up to [capacity] items without blocking writers.
       If [capacity = 0] then writes block until a reader is ready. *)
 
+  val is_empty : 'a t -> bool
+  (** [is_empty t] returns [true] if [t] is an empty stream, [false] otherwise. *)
+
   val add : 'a t -> 'a -> unit
   (** [add t item] adds [item] to [t].
       If this would take [t] over capacity, it blocks until there is space. *)
@@ -275,7 +278,7 @@ module Stream : sig
       it returns [None] if the stream is empty rather than waiting.
       Note that if another domain may add to the stream then a [None]
       result may already be out-of-date by the time this returns. *)
-end  
+end
 
 (** Cancelling other fibres when an exception occurs. *)
 module Cancel : sig
@@ -695,7 +698,7 @@ module Private : sig
     type 'a enqueue = ('a, exn) result -> unit
     (** A function provided by the scheduler to reschedule a previously-suspended thread. *)
 
-    type _ eff += 
+    type _ eff +=
       | Suspend : (Fibre_context.t -> 'a enqueue -> unit) -> 'a eff
       (** [Suspend fn] is performed when a fibre must be suspended
           (e.g. because it called {!Promise.await} on an unresolved promise).

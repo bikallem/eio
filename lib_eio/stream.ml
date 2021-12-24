@@ -39,6 +39,10 @@ let create capacity =
     writers = Waiters.create ();
   }
 
+let is_empty t =
+  with_mutex t @@ fun () ->
+  Queue.is_empty t.items
+
 let add t item =
   Mutex.lock t.mutex;
   match Waiters.wake_one t.readers item with
