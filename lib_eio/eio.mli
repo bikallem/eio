@@ -77,7 +77,7 @@ module Std : sig
     (** Promises are thread-safe and so can be shared between domains and used
         to communicate between them. *)
 
-    type !'a t
+    type 'a t
     (** An ['a t] is a promise for a value of type ['a]. *)
 
     type 'a u

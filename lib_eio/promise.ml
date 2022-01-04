@@ -30,7 +30,7 @@ type 'a state =
      - Half access to the promise's state.
      - The invariant that if the promise is resolved then the waiters list is empty. *)
 
-type !'a t = {
+type 'a t = {
   id : Ctf.id;
 
   state : 'a state Atomic.t;
