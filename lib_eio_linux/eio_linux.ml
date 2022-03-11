@@ -949,12 +949,15 @@ let net = object
       | `Unix path ->
         if String.length path > 0 && path.[0] <> Char.chr 0 then
           Switch.on_release sw (fun () -> Unix.unlink path)
-      | `Tcp _ -> ()
+      | `Tcp _ -> 
+        Unix.setsockopt sock_unix Unix.TCP_NODELAY true;
+        ()
     end;
     if reuse_addr then
       Unix.setsockopt sock_unix Unix.SO_REUSEADDR true;
     if reuse_port then
       Unix.setsockopt sock_unix Unix.SO_REUSEPORT true;
+
     let sock = FD.of_unix ~sw ~seekable:false ~close_unix:true sock_unix in
     Unix.bind sock_unix addr;
     Unix.listen sock_unix backlog;
