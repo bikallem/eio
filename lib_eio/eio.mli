@@ -543,6 +543,9 @@ module Flow : sig
   (** [read_exact src dst] keeps reading into [dst] until it is full.
       @raise End_of_file if the buffer could not be filled. *)
 
+  val read_all : #source -> string
+  (** [read_all src] is [content] where [content] is the data in [src] until [End_of_file]. *)
+
   val read_methods : #source -> read_method list
   (** [read_methods flow] is a list of extra ways of reading from [flow],
       with the preferred (most efficient) methods first.

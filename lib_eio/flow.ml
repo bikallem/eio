@@ -20,6 +20,40 @@ let read (t : #source) buf =
   assert (got > 0 && got <= Cstruct.length buf);
   got
 
+let ensure buf n = let _,_ = buf, n in failwith ""
+
+let read_all (t: #source) = 
+  let chunk_size = 65536 in (* IO_BUFFER_SIZE *)
+  let chunk_size = 
+    if chunk_size <= Sys.max_string_length then
+      chunk_size
+    else 
+      Sys.max_string_length in 
+  let buf = Cstruct.create chunk_size in 
+  match read t buf with
+  | exception End_of_file -> ""
+  | got -> 
+    if got < chunk_size then (* EOF reached, buffer partially filled *)
+      Cstruct.(buffer ~off:0 ~len:got buf.buffer |> to_string)
+    else begin
+      let rec loop buf = 
+        let buf = ensure buf chunk_size in
+        let rem = Cstruct.length buf in 
+        (* [rem] can be < [chunk_size] if buffer size close to
+           [Sys.max_string_length] *)
+        match read t buf with
+        | exception End_of_file -> 
+          Cstruct.(buffer ~off:0 ~len:buf.off buf.buffer |> to_string)
+        | got -> 
+          if got < rem then (* EOF reached *) 
+            let buf  = Cstruct.shift buf got in
+            Cstruct.(buffer ~off:0 ~len:buf.off buf.buffer |> to_string)
+          else 
+            loop (Cstruct.shift buf got)        
+      in 
+      loop (Cstruct.shift buf got)
+    end 
+
 let read_methods (t : #source) = t#read_methods
 
 let rec read_exact t buf =
