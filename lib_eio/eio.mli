@@ -110,26 +110,27 @@ end
 
 (** Clocks, time, sleeping and timeouts. *)
 module Time : sig
-  class virtual clock : object
-    method virtual now : float
-    method virtual sleep_until : float -> unit
+  class virtual ['a] clock : object
+    method virtual now : 'a
+    method virtual sleep_until : 'a -> unit
+    method virtual add_seconds : 'a -> float -> 'a
   end
 
-  val now : #clock -> float
+  val now : 'a #clock -> 'a
   (** [now t] is the current time according to [t]. *)
 
-  val sleep_until : #clock -> float -> unit
+  val sleep_until : 'a #clock -> 'a -> unit
   (** [sleep_until t time] waits until the given time is reached. *)
 
-  val sleep : #clock -> float -> unit
+  val sleep : 'a #clock -> float -> unit
   (** [sleep t d] waits for [d] seconds. *)
 
-  val with_timeout : #clock -> float -> (unit -> ('a, 'e) result) -> ('a, [> `Timeout] as 'e) result
+  val with_timeout : 'a #clock -> float -> (unit -> ('a, 'e) result) -> ('a, [> `Timeout] as 'e) result
   (** [with_timeout clock d fn] runs [fn ()] but cancels it after [d] seconds. *)
 
   exception Timeout
 
-  val with_timeout_exn : #clock -> float -> (unit -> 'a) -> 'a
+  val with_timeout_exn : 'a #clock -> float -> (unit -> 'a) -> 'a
   (** [with_timeout_exn clock d fn] runs [fn ()] but cancels it after [d] seconds,
       raising exception [Timeout]. *)
 end
@@ -198,7 +199,8 @@ module Stdenv : sig
     stderr : Flow.sink;
     net : Net.t;
     domain_mgr : Domain_manager.t;
-    clock : Time.clock;
+    real_clock : Ptime.t Time.clock;
+    mono_clock : Mtime.t Time.clock;
     fs : Fs.dir Path.t;
     cwd : Fs.dir Path.t;
     secure_random : Flow.source;
@@ -251,8 +253,11 @@ module Stdenv : sig
       To use this, see {!Time}.
   *)
 
-  val clock : <clock : #Time.clock as 'a; ..> -> 'a
-  (** [clock t] is the system clock. *)
+  val real_clock : <real_clock : Ptime.t #Time.clock as 'a; ..> -> 'a
+  (** [real_clock t] is the realtime OS clock. *)
+
+  val mono_clock : <mono_clock : Mtime.t #Time.clock as 'a; ..> -> 'a
+  (** [mono_clock t] is the monotonic OS clock. *)
 
   (** {1 Randomness} *)
 
