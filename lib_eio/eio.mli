@@ -112,8 +112,9 @@ end
 module Time : sig
   class virtual ['a] clock : object
     method virtual now : 'a
-    method virtual sleep_until : 'a -> unit
-    method virtual add_seconds : 'a -> float -> 'a
+    method virtual sleep : float -> unit
+    method virtual compare : 'a -> 'a -> int
+    method virtual diff : 'a -> 'a -> float
   end
 
   val now : 'a #clock -> 'a
