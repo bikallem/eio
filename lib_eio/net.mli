@@ -78,10 +78,35 @@ module Sockaddr : sig
   val pp : Format.formatter -> [< t] -> unit
 end
 
+(** {2 Socket Options} *)
+
+type 'a sockopt =
+  | SO_DEBUG      : bool sockopt  (** Record debugging information *)
+  | SO_BROADCAST  : bool sockopt  (** Permit sending of broadcast messages *)
+  | SO_REUSEADDR  : bool sockopt  (** Allow reuse of local addresses for bind *)
+  | SO_KEEPALIVE  : bool sockopt  (** Keep connection active *)
+  | SO_DONTROUTE  : bool sockopt  (** Bypass the standard routing algorithms *)
+  | SO_OOBINLINE  : bool sockopt  (** Leave out-of-band data in line *)
+  | SO_ACCEPTCONN : bool sockopt  (** Report whether socket listening is enabled *)
+  | TCP_NODELAY   : bool sockopt  (** Control the Nagle algorithm for TCP sockets *)
+  | IPV6_ONLY     : bool sockopt  (** Forbid binding an IPv6 socket to an IPv4 address *)
+  | SO_REUSEPORT  : bool sockopt  (** Allow reuse of address and port bindings *)
+  | SO_SNDBUF     : int sockopt   (** Size of send buffer *)
+  | SO_RCVBUF     : int sockopt   (** Size of received buffer *)
+  | SO_TYPE       : int sockopt   (** Report the socket type *)
+  | SO_RCVLOWAT   : int sockopt   (** Minimum number of bytes to process for input operations *)
+  | SO_SNDLOWAT   : int sockopt   (** Minimum number of bytes to process for output operations *)
+  | SO_LINGER     : int option sockopt (** Whether to linger on closed connections
+                                            that have data present, and for how long
+                                            (in seconds) *)
+  | SO_RCVTIMEO   : float sockopt (** Timeout for input operations *)
+  | SO_SNDTIMEO   : float sockopt (** Timeout for output operations *)
+
 (** {2 Provider Interfaces} *)
 
 class virtual socket : object
   inherit Generic.t
+   method virtual setsockopt : 'a sockopt -> 'a -> unit
 end
 
 class virtual stream_socket : object

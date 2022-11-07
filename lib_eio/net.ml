@@ -135,12 +135,34 @@ module Sockaddr = struct
       Format.fprintf f "udp:%a:%d" Ipaddr.pp_for_uri addr port
 end
 
+type 'a sockopt =
+  | SO_DEBUG      : bool sockopt 
+  | SO_BROADCAST  : bool sockopt 
+  | SO_REUSEADDR  : bool sockopt 
+  | SO_KEEPALIVE  : bool sockopt 
+  | SO_DONTROUTE  : bool sockopt 
+  | SO_OOBINLINE  : bool sockopt 
+  | SO_ACCEPTCONN : bool sockopt 
+  | TCP_NODELAY   : bool sockopt 
+  | IPV6_ONLY     : bool sockopt 
+  | SO_REUSEPORT  : bool sockopt 
+  | SO_SNDBUF     : int sockopt  
+  | SO_RCVBUF     : int sockopt  
+  | SO_TYPE       : int sockopt  
+  | SO_RCVLOWAT   : int sockopt  
+  | SO_SNDLOWAT   : int sockopt  
+  | SO_LINGER     : int option sockopt 
+  | SO_RCVTIMEO   : float sockopt 
+  | SO_SNDTIMEO   : float sockopt 
+
 class virtual socket = object (_ : #Generic.t)
   method probe _ = None
+  method virtual setsockopt : 'a. 'a sockopt -> 'a -> unit
 end
 
 class virtual stream_socket = object
   inherit Flow.two_way
+  method virtual setsockopt : 'a. 'a sockopt -> 'a -> unit
 end
 
 class virtual listening_socket = object
