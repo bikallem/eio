@@ -260,3 +260,5 @@ let with_tcp_connect ?(timeout=Time.Timeout.none) ~host ~service t f =
       | `Unix _ -> None
     )
   |> aux
+
+let setsockopt (s:#socket) = s#setsockopt

@@ -1031,8 +1031,14 @@ let fallback_copy src dst =
     done
   with End_of_file -> ()
 
+class socket sock = object
+  inherit Eio.Net.socket
+  method setsockopt = Eio_unix.setsockopt (FD.to_unix `Peek sock)
+end
+
 let udp_socket sock = object
   inherit Eio.Net.datagram_socket
+  inherit! socket sock
 
   method close = FD.close sock
 
@@ -1053,62 +1059,70 @@ let udp_socket sock = object
         raise (Failure "Expected INET UDP socket address but got Unix domain socket address.")
 end
 
-let flow fd =
+class flow fd =
   let is_tty = lazy (Unix.isatty (FD.get_exn "isatty" fd)) in
-  object (_ : <source; sink; ..>)
-    method fd = fd
-    method close = FD.close fd
+  object
+  inherit Eio.Flow.two_way
 
-    method stat = FD.fstat fd
+  method fd = fd
+  method close = FD.close fd
 
-    method probe : type a. a Eio.Generic.ty -> a option = function
-      | FD -> Some fd
-      | Eio_unix.Private.Unix_file_descr op -> Some (FD.to_unix op fd)
-      | _ -> None
+  method stat = FD.fstat fd
 
-    method read_into buf =
-      if Lazy.force is_tty then (
-        (* Work-around for https://github.com/axboe/liburing/issues/354
-           (should be fixed in Linux 5.14) *)
-        Low_level.await_readable fd
-      );
-      Low_level.readv fd [buf]
+  method! probe : type a. a Eio.Generic.ty -> a option = function
+    | FD -> Some fd
+    | Eio_unix.Private.Unix_file_descr op -> Some (FD.to_unix op fd)
+    | _ -> None
 
-    method pread ~file_offset bufs =
-      Low_level.readv ~file_offset fd bufs
+  method read_into buf =
+    if Lazy.force is_tty then (
+      (* Work-around for https://github.com/axboe/liburing/issues/354
+         (should be fixed in Linux 5.14) *)
+      Low_level.await_readable fd
+    );
+    Low_level.readv fd [buf]
 
-    method pwrite ~file_offset bufs =
-      Low_level.writev_single ~file_offset fd bufs
+  method pread ~file_offset bufs =
+    Low_level.readv ~file_offset fd bufs
 
-    method read_methods = []
+  method pwrite ~file_offset bufs =
+    Low_level.writev_single ~file_offset fd bufs
 
-    method write bufs = Low_level.writev fd bufs
+  method! write bufs = Low_level.writev fd bufs
 
-    method copy src =
-      match get_fd_opt src with
-      | Some src -> fast_copy_try_splice src fd
-      | None ->
-        let rec aux = function
-          | Eio.Flow.Read_source_buffer rsb :: _ -> copy_with_rsb rsb fd
-          | _ :: xs -> aux xs
-          | [] -> fallback_copy src fd
-        in
-        aux (Eio.Flow.read_methods src)
+  method copy src =
+    match get_fd_opt src with
+    | Some src -> fast_copy_try_splice src fd
+    | None ->
+      let rec aux = function
+        | Eio.Flow.Read_source_buffer rsb :: _ -> copy_with_rsb rsb fd
+        | _ :: xs -> aux xs
+        | [] -> fallback_copy src fd
+      in
+      aux (Eio.Flow.read_methods src)
 
-    method shutdown cmd =
-      Unix.shutdown (FD.get_exn "shutdown" fd) @@ match cmd with
-      | `Receive -> Unix.SHUTDOWN_RECEIVE
-      | `Send -> Unix.SHUTDOWN_SEND
-      | `All -> Unix.SHUTDOWN_ALL
+  method shutdown cmd =
+    Unix.shutdown (FD.get_exn "shutdown" fd) @@ match cmd with
+    | `Receive -> Unix.SHUTDOWN_RECEIVE
+    | `Send -> Unix.SHUTDOWN_SEND
+    | `All -> Unix.SHUTDOWN_ALL
 
-    method unix_fd op = FD.to_unix op fd
-  end
+  method unix_fd (op: [`Peek | `Take]) = FD.to_unix op fd
+end
+
+let flow fd = new flow fd
+
+let stream_socket fd = object(_ : <Eio.Net.stream_socket; ..>)
+  inherit flow fd
+  inherit! socket fd
+end
 
 let source fd = (flow fd :> source)
 let sink   fd = (flow fd :> sink)
 
 let listening_socket fd = object
   inherit Eio.Net.listening_socket
+  inherit! socket fd
 
   method! probe : type a. a Eio.Generic.ty -> a option = function
     | Eio_unix.Private.Unix_file_descr op -> Some (FD.to_unix op fd)
@@ -1123,8 +1137,8 @@ let listening_socket fd = object
       | Unix.ADDR_UNIX path         -> `Unix path
       | Unix.ADDR_INET (host, port) -> `Tcp (Eio_unix.Ipaddr.of_unix host, port)
     in
-    let flow = (flow client :> <Eio.Flow.two_way; Eio.Flow.close>) in
-    flow, client_addr
+    let stream_socket = (stream_socket client :> <Eio.Net.stream_socket; Eio.Flow.close>) in
+    stream_socket, client_addr
 end
 
 let socket_domain_of = function
@@ -1183,7 +1197,7 @@ let net = object
     let sock_unix = Unix.socket (socket_domain_of connect_addr) socket_type 0 in
     let sock = FD.of_unix ~sw ~seekable:false ~close_unix:true sock_unix in
     Low_level.connect sock addr;
-    (flow sock :> <Eio.Flow.two_way; Eio.Flow.close>)
+    (stream_socket sock :> <Eio.Net.stream_socket; Eio.Flow.close>)
 
   method datagram_socket ~reuse_addr ~reuse_port ~sw saddr =
     let sock_unix = Unix.socket ~cloexec:true (socket_domain_of saddr) Unix.SOCK_DGRAM 0 in
