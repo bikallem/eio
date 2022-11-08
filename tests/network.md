@@ -353,7 +353,7 @@ On success, we close the connection immediately:
 ```ocaml
 # Eio_mock.Backend.run @@ fun () ->
   let socket = Eio_mock.Net.listening_socket "tcp/80" in
-  let flow = Eio_mock.Flow.make "connection" in
+  let flow = Eio_mock.Net.stream_socket "connection" in
   let addr = `Tcp (Eio.Net.Ipaddr.V4.loopback, 1234) in
   Eio_mock.Net.on_accept socket [`Return (flow, addr)];
   Switch.run @@ fun sw ->
@@ -370,7 +370,7 @@ If the forked fiber fails, we close immediately:
 ```ocaml
 # Eio_mock.Backend.run @@ fun () ->
   let socket = Eio_mock.Net.listening_socket "tcp/80" in
-  let flow = Eio_mock.Flow.make "connection" in
+  let flow = Eio_mock.Net.stream_socket "connection" in
   let addr = `Tcp (Eio.Net.Ipaddr.V4.loopback, 1234) in
   Eio_mock.Net.on_accept socket [`Return (flow, addr)];
   Switch.run @@ fun sw ->
@@ -387,7 +387,7 @@ If the fork itself fails, we still close the connection:
 ```ocaml
 # Eio_mock.Backend.run @@ fun () ->
   let socket = Eio_mock.Net.listening_socket "tcp/80" in
-  let flow = Eio_mock.Flow.make "connection" in
+  let flow = Eio_mock.Net.stream_socket "connection" in
   let addr = `Tcp (Eio.Net.Ipaddr.V4.loopback, 1234) in
   Eio_mock.Net.on_accept socket [`Return (flow, addr)];
   Switch.run @@ fun sw ->
@@ -630,7 +630,7 @@ First address works:
 ```ocaml
 # Eio_mock.Backend.run @@ fun () ->
   Eio_mock.Net.on_getaddrinfo net [`Return [addr1; addr2]];
-  let mock_flow = Eio_mock.Flow.make "flow" in
+  let mock_flow = Eio_mock.Net.stream_socket "flow" in
   Eio_mock.Net.on_connect net [`Return mock_flow];
   Eio.Net.with_tcp_connect ~host:"www.example.com" ~service:"http" net (fun conn ->
      let req = "GET / HTTP/1.1\r\nHost:www.example.com:80\r\n\r\n" in
@@ -650,7 +650,7 @@ Second address works:
 ```ocaml
 # Eio_mock.Backend.run @@ fun () ->
   Eio_mock.Net.on_getaddrinfo net [`Return [addr1; addr2]];
-  let mock_flow = Eio_mock.Flow.make "flow" in
+  let mock_flow = Eio_mock.Net.stream_socket "flow" in
   Eio_mock.Net.on_connect net [`Raise connection_failure;
                                `Return mock_flow];
   Eio.Net.with_tcp_connect ~host:"www.example.com" ~service:"http" net (fun conn ->
@@ -688,7 +688,7 @@ First attempt times out:
   let clock = Eio_mock.Clock.make () in
   let timeout = Eio.Time.Timeout.of_s clock 10. in
   Eio_mock.Net.on_getaddrinfo net [`Return [addr1; addr2]];
-  let mock_flow = Eio_mock.Flow.make "flow" in
+  let mock_flow = Eio_mock.Net.stream_socket "flow" in
   Eio_mock.Net.on_connect net [`Run Fiber.await_cancel; `Return mock_flow];
   Fiber.both
     (fun () ->
