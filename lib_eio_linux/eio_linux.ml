@@ -1177,10 +1177,8 @@ let net = object
           Switch.on_release sw (fun () -> Unix.unlink path)
       | `Tcp _ -> ()
     end;
-    if reuse_addr then
-      Unix.setsockopt sock_unix Unix.SO_REUSEADDR true;
-    if reuse_port then
-      Unix.setsockopt sock_unix Unix.SO_REUSEPORT true;
+    Unix.setsockopt sock_unix Unix.SO_REUSEADDR reuse_addr;
+    Unix.setsockopt sock_unix Unix.SO_REUSEPORT reuse_port;
     let sock = FD.of_unix ~sw ~seekable:false ~close_unix:true sock_unix in
     Unix.bind sock_unix addr;
     Unix.listen sock_unix backlog;
@@ -1206,10 +1204,8 @@ let net = object
     | `Udp (host, port) ->
       let host = Eio_unix.Ipaddr.to_unix host in
       let addr = Unix.ADDR_INET (host, port) in
-      if reuse_addr then
-        Unix.setsockopt sock_unix Unix.SO_REUSEADDR true;
-      if reuse_port then
-        Unix.setsockopt sock_unix Unix.SO_REUSEPORT true;
+      Unix.setsockopt sock_unix Unix.SO_REUSEADDR reuse_addr;
+      Unix.setsockopt sock_unix Unix.SO_REUSEPORT reuse_port;
       Unix.bind sock_unix addr
     | `UdpV4 | `UdpV6 -> ()
     end;

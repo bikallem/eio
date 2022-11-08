@@ -753,12 +753,6 @@ class virtual ['a] listening_socket ~backlog sock = object (self)
       )
 end
 
-(* TODO: implement, or maybe remove from the Eio API.
-   Luv makes TCP sockets reuse_addr by default, and maybe that's fine everywhere.
-   Extracting the FD will require https://github.com/aantron/luv/issues/120 *)
-let luv_reuse_addr _sock _v = ()
-let luv_reuse_port _sock _v = ()
-
 let luv_addr_of_eio host port =
   let host = Unix.string_of_inet_addr (Eio_unix.Ipaddr.to_unix host) in
   match Luv.Sockaddr.ipv6 host port with
@@ -849,14 +843,14 @@ let net = object
   method listen ~reuse_addr ~reuse_port ~backlog ~sw = function
     | `Tcp (host, port) ->
       let sock = Luv.TCP.init ~loop:(get_loop ()) () |> or_raise |> Handle.of_luv ~sw in
-      luv_reuse_addr sock reuse_addr;
-      luv_reuse_port sock reuse_port;
       let addr = luv_addr_of_eio host port in
       Luv.TCP.bind (Handle.get "bind" sock) addr |> or_raise;
-      listening_ip_socket ~backlog sock
+      let l = listening_ip_socket ~backlog sock in
+      l#setsockopt Eio.Net.SO_REUSEADDR reuse_addr;
+      l#setsockopt Eio.Net.SO_REUSEPORT reuse_port;
+      l
     | `Unix path         ->
       let sock = Luv.Pipe.init ~loop:(get_loop ()) () |> or_raise |> Handle.of_luv ~sw in
-      luv_reuse_addr sock reuse_addr;
       if reuse_addr then (
         match Unix.lstat path with
         | Unix.{ st_kind = S_SOCK; _ } -> Unix.unlink path
@@ -867,7 +861,9 @@ let net = object
       (* Remove the path when done (except for abstract sockets). *)
       if String.length path > 0 && path.[0] <> Char.chr 0 then
         Switch.on_release sw (fun () -> Unix.unlink path);
-      listening_unix_socket ~backlog sock
+      let l = listening_unix_socket ~backlog sock in
+      l#setsockopt Eio.Net.SO_REUSEADDR reuse_addr;
+      l
 
   method connect ~sw = function
     | `Tcp (host, port) ->
@@ -884,10 +880,9 @@ let net = object
     begin match saddr with
     | `Udp (host, port) ->
       let addr = luv_addr_of_eio host port in
-      luv_reuse_addr sock reuse_addr;
-      luv_reuse_port sock reuse_port;
       Luv.UDP.bind sock addr |> or_raise;
       let u = udp_socket dg_sock in
+      u#setsockopt Eio.Net.SO_REUSEADDR reuse_addr;
       u#setsockopt Eio.Net.SO_REUSEPORT reuse_port;
       u
     | `UdpV4 | `UdpV6 ->     udp_socket dg_sock

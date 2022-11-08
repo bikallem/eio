@@ -155,7 +155,8 @@ Calling accept when the switch is already off:
 
 ```ocaml
 # run @@ fun ~net sw ->
-  let server = Eio.Net.listen net ~sw ~reuse_addr:true ~backlog:5 addr in
+  let addr = `Tcp (Eio.Net.Ipaddr.V4.loopback, 9000) in
+  let server = Eio.Net.listen net ~sw ~reuse_addr:true ~reuse_port:true ~backlog:5 addr in
   Switch.fail sw (Failure "Simulated error");
   Eio.Net.accept_fork server ~sw (fun _flow _addr -> assert false)
     ~on_error:raise;;
@@ -168,7 +169,7 @@ Working with UDP and endpoints:
 let run_dgram addr ~net sw =
   let e1 = `Udp (addr, 8081) in
   let e2 = `Udp (addr, 8082) in
-  let listening_socket = Eio.Net.datagram_socket ~sw net e2 in
+  let listening_socket = Eio.Net.datagram_socket ~reuse_addr:true ~reuse_port:true ~sw net e2 in
   Fiber.both
     (fun () ->
       let buf = Cstruct.create 20 in
@@ -253,7 +254,8 @@ Extracting file descriptors from Eio objects:
 
 ```ocaml
 # run @@ fun ~net sw ->
-  let server = Eio.Net.listen net ~sw ~reuse_addr:true ~backlog:5 addr in
+  let addr = `Tcp (Eio.Net.Ipaddr.V4.loopback, 3001) in
+  let server = Eio.Net.listen net ~sw ~reuse_addr:true ~reuse_port:true ~backlog:5 addr in
   traceln "Listening socket has Unix FD: %b" (Eio_unix.FD.peek_opt server <> None);
   let have_client, have_server =
     Fiber.pair
