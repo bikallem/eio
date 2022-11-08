@@ -267,6 +267,12 @@ val getnameinfo : #t -> Sockaddr.t -> (string * string)
     registered domain name represented by [sockaddr]. [service] is the IANA specified textual name of the
     port specified in [sockaddr], e.g. 'ftp', 'http', 'https', etc. *)
 
+(** {2 Socket} *)
+
+val setsockopt : #socket -> 'a sockopt -> 'a -> unit
+(** [setsockopt s opt v] configures socket [s] with socket option and value [opt]
+    and [v] respectively. *)
+
 (** {2 Closing} *)
 val close : <close: unit; ..> -> unit
 (** [close t] marks the socket as closed. It can no longer be used after this. *)

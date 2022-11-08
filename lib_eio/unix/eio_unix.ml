@@ -68,3 +68,24 @@ let getnameinfo (sockaddr : Eio.Net.Sockaddr.t) =
   run_in_systhread (fun () ->
     let Unix.{ni_hostname; ni_service} = Unix.getnameinfo sockaddr options in
     (ni_hostname, ni_service))
+
+let setsockopt (type a) fd (opt: a Eio.Net.sockopt) (v: a) =
+  match opt with
+  | SO_DEBUG      -> Unix.(setsockopt fd SO_DEBUG v)
+  | SO_BROADCAST  -> Unix.(setsockopt fd SO_BROADCAST v)
+  | SO_REUSEADDR  -> Unix.(setsockopt fd SO_REUSEADDR v)
+  | SO_KEEPALIVE  -> Unix.(setsockopt fd SO_KEEPALIVE v)
+  | SO_DONTROUTE  -> Unix.(setsockopt fd SO_DONTROUTE v)
+  | SO_OOBINLINE  -> Unix.(setsockopt fd SO_OOBINLINE v)
+  | SO_ACCEPTCONN -> Unix.(setsockopt fd SO_ACCEPTCONN v)
+  | TCP_NODELAY   -> Unix.(setsockopt fd TCP_NODELAY v)
+  | IPV6_ONLY     -> Unix.(setsockopt fd IPV6_ONLY v)
+  | SO_REUSEPORT  -> Unix.(setsockopt fd SO_REUSEADDR v)
+  | SO_SNDBUF     -> Unix.(setsockopt_int fd SO_SNDBUF v)
+  | SO_RCVBUF     -> Unix.(setsockopt_int fd SO_RCVBUF v)
+  | SO_TYPE       -> Unix.(setsockopt_int fd SO_TYPE v)
+  | SO_RCVLOWAT   -> Unix.(setsockopt_int fd SO_RCVLOWAT v)
+  | SO_SNDLOWAT   -> Unix.(setsockopt_int fd SO_SNDLOWAT v)
+  | SO_LINGER     -> Unix.(setsockopt_optint fd SO_LINGER v)
+  | SO_RCVTIMEO   -> Unix.(setsockopt_float fd SO_RCVTIMEO v)
+  | SO_SNDTIMEO   -> Unix.(setsockopt_float fd SO_SNDTIMEO v)
