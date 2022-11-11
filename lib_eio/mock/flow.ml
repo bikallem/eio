@@ -25,8 +25,12 @@ let rec takev len = function
   | x :: _ when Cstruct.length x >= len -> [Cstruct.sub x 0 len]
   | x :: xs -> x :: takev (len - Cstruct.length x) xs
 
-class t ?(pp=pp_default) label =
-  let on_read = Handler.make (`Raise End_of_file) in
+class t ?(pp=pp_default) ?(on_read_actions=[]) label =
+  let on_read =
+    let default_handler = Handler.make (`Raise End_of_file) in
+    Handler.seq default_handler on_read_actions;
+    default_handler
+  in
   let on_copy_bytes = Handler.make (`Return 4096) in
   let copy_method = ref `Read_into in
   (* Test optimised copying using Read_source_buffer *)
@@ -101,7 +105,7 @@ class t ?(pp=pp_default) label =
       traceln "%s: closed" label
   end
 
-let make ?(pp=pp_default) label = new t ~pp label
+let make ?pp ?on_read_actions label = new t ?pp ?on_read_actions label
 
 let on_read (t:#t) = Handler.seq t#on_read
 let on_copy_bytes (t:#t) = Handler.seq t#on_copy_bytes

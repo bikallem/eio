@@ -89,7 +89,7 @@ module Flow : sig
     | `Read_source_buffer       (** Use the {!Eio.Flow.Read_source_buffer} optimisation. *)
   ]
 
-  class virtual t : ?pp:string Fmt.t -> string -> object
+  class virtual t : ?pp:string Fmt.t -> ?on_read_actions: string Handler.actions -> string -> object
     inherit Eio.Flow.two_way
     inherit Eio.Flow.close
     method on_read : string Handler.t
@@ -98,7 +98,7 @@ module Flow : sig
     method attach_to_switch : Eio.Switch.t -> unit
   end
 
-  val make : ?pp:string Fmt.t -> string -> t
+  val make : ?pp:string Fmt.t -> ?on_read_actions: string Handler.actions -> string -> t
   (** [make label] is a mock Eio flow.
       It can be used as a source, sink, or two-way flow.
       @param pp Printer to use to display the data. *)
@@ -156,7 +156,7 @@ module Net : sig
   val listening_socket : string -> listening_socket
   (** [listening_socket label] can be configured to provide mock connections. *)
 
-  val stream_socket : string -> stream_socket
+  val stream_socket : ?on_read_actions: string Handler.actions -> string -> stream_socket
   (** [stream_socket label] is a mock [stream_socket]. *)
 
   val on_accept :

@@ -129,8 +129,8 @@ let listening_socket label =
     method setsockopt = (setsockopt label self#on_setsockopt)
   end
 
-let stream_socket label : stream_socket = object (self)
-  inherit Flow.t label
+let stream_socket ?on_read_actions label : stream_socket = object (self)
+  inherit Flow.t ?on_read_actions label
 
   method on_setsockopt = Handler.make (`Raise (Failure "Mock setsockopt handler not configured"))
   method setsockopt: type a. a Eio.Net.sockopt -> a -> unit =
