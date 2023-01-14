@@ -210,16 +210,21 @@ val accept_sub :
 val run_server :
   ?max_connections:int ->
   ?shutdown:unit Promise.t ->
+  ?additional_domains:(#Domain_manager.t * int) ->
   ?on_error:(exn -> unit) ->
   #listening_socket ->
   connection_handler ->
   unit
-(** [run_server sock conn_handler] establishes a concurrent socket server [s]. [s] runs on a {e single}
-    OCaml {!module:Stdlib.Domain}. It listens to incoming client connections as specified by socket [sock].
-    On a successful establishment of client connection with [s], [conn_handler] is executed. Otherwise [on_error]
-    is executed.
+(** [run_server sock connection_handler] establishes a concurrent socket server [s]. It listens to incoming client
+    connections as specified by socket [sock]. On a successful establishment of client connection with [s],
+    [connection_handler] is executed. Otherwise [on_error] is executed.
 
-    @param on_error is a connection error handler. By defailt it is set to {!val:raise}.
+    {b Running Parallel Server}
+
+    By default [s] runs on a {e single} OCaml {!module:Domain}. However, if [additional_domains:(domain_mgr, domains)]
+    parameter is given, then [s] will run [connection_handler] in parallel over the specified number of [domains]. In 
+    such cases ensure that [connection_handler] only accesses thread-safe values.
+
     @param max_connections determines the maximum number of concurrent connections accepted by [s] at any time.
                            The default is [Int.max_int].
 
@@ -227,8 +232,12 @@ val run_server :
                     to stop accepting incoming client connection requests. If this parameter is not
                     given and/or is never fulfilled - the default setting - [s] keeps accepting client connections
                     indefinitely.
+    @param additional_domains is [(domain_mgr, domains)] where [domains] denotes the additional domains that [s] 
+                              will to execute [connection_handler].
+    @param on_error is a connection error handler. By defailt it is set to {!val:raise}.
 
-    @raise Invalid_argument if [max_connections < 0]. *)
+    @raise Invalid_argument if [max_connections < 0].
+                            if [additional_domains = (domain_mgr, domains)] is used and [domains < 1]. *)
 
 (** {2 Datagram Sockets} *)
 
