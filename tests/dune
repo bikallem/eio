@@ -1,3 +1,4 @@
+(test (name test_run_server) (libraries eio eio_main))
 (mdx
   (package eio_main)
   (packages eio_main))
