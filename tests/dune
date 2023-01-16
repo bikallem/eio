@@ -1,4 +1,6 @@
-(test (name test_run_server) (libraries eio eio_main))
+(tests 
+  (names test_run_server test_client)
+  (libraries eio eio_main))
 (mdx
   (package eio_main)
   (packages eio_main))
